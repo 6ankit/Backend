@@ -2,20 +2,21 @@ const express = require("express");
 const { Client } = require("pg");
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
+
 const app = express();
 app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
 
-
-
 // External PostgreSQL connection using the external database URL
 const connection = new Client({
-  connectionString: "postgresql://root:IwwZUnHsePtgC5MaRpJtev0kb1BviY5h@dpg-d0hcmtruibrs739k0jo0-a.oregon-postgres.render.com/source_app"
+  connectionString: "postgresql://root:IwwZUnHsePtgC5MaRpJtev0kb1BviY5h@dpg-d0hcmtruibrs739k0jo0-a.oregon-postgres.render.com/source_app",
+  ssl: { rejectUnauthorized: false } // Enabling SSL
 });
 
 const connection2 = new Client({
-  connectionString: "postgresql://root:IwwZUnHsePtgC5MaRpJtev0kb1BviY5h@dpg-d0hcmtruibrs739k0jo0-a.oregon-postgres.render.com/source_app"
+  connectionString: "postgresql://root:IwwZUnHsePtgC5MaRpJtev0kb1BviY5h@dpg-d0hcmtruibrs739k0jo0-a.oregon-postgres.render.com/source_app",
+  ssl: { rejectUnauthorized: false } // Enabling SSL
 });
 
 connection.connect();
@@ -24,7 +25,8 @@ connection2.connect();
 app.get("/Post", (req, res) => {
   connection2.query("SELECT * FROM post", (err, result) => {
     if (err) {
-      res.send("Error");
+      console.error("Error fetching posts:", err);
+      res.status(500).send("Error fetching posts");
     } else {
       res.send(result.rows);  // PostgreSQL result.rows
     }
@@ -56,7 +58,7 @@ app.post("/Login", (req, res) => {
   connection.query('SELECT * FROM "user" WHERE email = $1 AND password = $2', [email, password], (err, result) => {
     if (err) {
       console.error("Error executing query:", err);
-      return res.send(false); // Return false in case of error
+      return res.status(500).send("Error during login");
     }
 
     if (result.rows.length > 0) {
@@ -73,10 +75,11 @@ app.post("/Singup", (req, res) => {
   // Use placeholders to prevent SQL injection
   connection.query('INSERT INTO "user" (email, password) VALUES ($1, $2)', [email, password], (err, result) => {
     if (err) {
-      res.send(err);
+      console.error("Error during signup:", err);
+      res.status(500).send("Signup failed");
     } else {
       res.send(true);
-      console.log("Hogya kam chal ab");
+      console.log("Signup successful");
     }
   });
 });
@@ -85,17 +88,19 @@ app.get("/", (req, res) => {
   try {
     connection.query('SELECT * FROM "user"', (err, result) => {
       if (err) {
-        res.send(err);
+        console.error("Error fetching users:", err);
+        res.status(500).send("Error fetching users");
       } else {
         res.send(result.rows); // PostgreSQL result.rows
       }
     });
   } catch (err) {
-    res.send(err);
+    console.error("Error during fetch:", err);
+    res.status(500).send("Internal Server Error");
   }
 });
 
 const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
-  console.log("Server is running on port 3000");
+  console.log(`Server is running on port ${PORT}`);
 });
