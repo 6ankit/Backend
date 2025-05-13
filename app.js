@@ -2,11 +2,12 @@ const express = require("express");
 const { Client } = require("pg");
 const cors = require("cors");
 const cookieParser = require('cookie-parser');
+const app = express();
 app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
 
-const app = express();
+
 
 // External PostgreSQL connection using the external database URL
 const connection = new Client({
