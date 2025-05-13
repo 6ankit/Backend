@@ -1,39 +1,34 @@
 const express = require("express");
-const app=express();
-const mysql=require("mysql2");
-const cors=require("cors");
+const { Client } = require("pg");
+const cors = require("cors");
 const cookieParser = require('cookie-parser');
-// const { parseAst } = require("vite");
-
 app.use(cors());
 app.use(cookieParser());
 app.use(express.json());
 
-const connection = mysql.createConnection({
-  host:"localhost",
-  user:"root",
-  database:"testing",
-  password:"apnacollege"
-})
+const app = express();
 
-const connection2 = mysql.createConnection({
-  host: "localhost",
-  user: "root",
-  password: "apnacollege",
-  database: "test"
+// External PostgreSQL connection using the external database URL
+const connection = new Client({
+  connectionString: "postgresql://root:IwwZUnHsePtgC5MaRpJtev0kb1BviY5h@dpg-d0hcmtruibrs739k0jo0-a.oregon-postgres.render.com/source_app"
 });
 
-// Route to fetch all posts
+const connection2 = new Client({
+  connectionString: "postgresql://root:IwwZUnHsePtgC5MaRpJtev0kb1BviY5h@dpg-d0hcmtruibrs739k0jo0-a.oregon-postgres.render.com/source_app"
+});
+
+connection.connect();
+connection2.connect();
+
 app.get("/Post", (req, res) => {
   connection2.query("SELECT * FROM post", (err, result) => {
     if (err) {
       res.send("Error");
     } else {
-      res.send(result);
+      res.send(result.rows);  // PostgreSQL result.rows
     }
   });
 });
-
 
 app.post("/newPost", (req, res) => {
   const { name, description } = req.body;
@@ -42,7 +37,7 @@ app.post("/newPost", (req, res) => {
     return res.status(400).send("Missing name or description");
   }
 
-  const query = "INSERT INTO post (name, description) VALUES (?, ?)";
+  const query = "INSERT INTO post (name, description) VALUES ($1, $2)";
   connection2.query(query, [name, description], (err, result) => {
     if (err) {
       console.error("Database insert error:", err);
@@ -53,78 +48,53 @@ app.post("/newPost", (req, res) => {
   });
 });
 
-
-
-
-
-
-
 app.post("/Login", (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    // Using parameterized query to prevent SQL Injection
-    connection.query('SELECT * FROM user WHERE email = ? AND password = ?', [email, password], (err, result) => {
-        if (err) {
-            console.error("Error executing query:", err);
-            return res.send(false); // Return false in case of error
-        }
+  // Using parameterized query to prevent SQL Injection
+  connection.query('SELECT * FROM "user" WHERE email = $1 AND password = $2', [email, password], (err, result) => {
+    if (err) {
+      console.error("Error executing query:", err);
+      return res.send(false); // Return false in case of error
+    }
 
-        if (result.length > 0) {
-            res.send(true); // User found
-        } else {
-            res.send(false); // No user found
-        }
-    });
+    if (result.rows.length > 0) {
+      res.send(true); // User found
+    } else {
+      res.send(false); // No user found
+    }
+  });
 });
-
 
 app.post("/Singup", (req, res) => {
-    const { email, password } = req.body;
+  const { email, password } = req.body;
 
-    // Use placeholders to prevent SQL injection
-    connection.query("INSERT INTO USER (email, password) VALUES (?, ?)", [email, password], (err, result) => {
-        if (err) {
-            res.send(err);
-        } else {
-            res.send(true);
-            console.log("Hogya kam chal ab");
-        }
-    });
+  // Use placeholders to prevent SQL injection
+  connection.query('INSERT INTO "user" (email, password) VALUES ($1, $2)', [email, password], (err, result) => {
+    if (err) {
+      res.send(err);
+    } else {
+      res.send(true);
+      console.log("Hogya kam chal ab");
+    }
+  });
 });
 
-
-
-
-
-
-
-
-
-
-
-
-app.get("/",(req,res)=>{
-   try{
-    connection.query("SELECT * FROM user",(err,result)=>{
-   if(err)
-   {
-    res.send(err);
-   }
-   else 
-   {
-    res.send(result);
-   }
-   })
-  }
-  catch(err)
-  {
+app.get("/", (req, res) => {
+  try {
+    connection.query('SELECT * FROM "user"', (err, result) => {
+      if (err) {
+        res.send(err);
+      } else {
+        res.send(result.rows); // PostgreSQL result.rows
+      }
+    });
+  } catch (err) {
     res.send(err);
   }
-})
+});
 
-
-const PORT = process.env.PORT||3000;
-
-app.listen(PORT,()=>{
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
   console.log("Server is running on port 3000");
-})
+});
